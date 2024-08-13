@@ -111,10 +111,6 @@ Para ordenar un archivo binario, utiliza el programa `sorter` con el algoritmo d
 - Asegúrate de que el archivo ejecutable tenga permisos de ejecución en sistemas Unix/Linux.
 - En Windows, usa `generator.exe` y `sorter.exe` en lugar de `generator` y `sorter`.
 
-## Contribuciones
-
-Las contribuciones al proyecto son bienvenidas. Por favor, abre un issue o envía un pull request para mejorar el proyecto.
-
 ## Licencia
 
 Este proyecto está licenciado bajo la Licencia MIT. Consulta el archivo `LICENSE` para obtener más detalles.
