@@ -1,67 +1,48 @@
 #include <iostream>
 #include <fstream>
 #include <cstdlib>
-#include <string>
+#include <ctime>
 
-using namespace std;
-
-void generateFile(const string &sizeArg, const string &outputFilePath) {
-    // Determinar el tamaño del archivo en bytes
-    long long sizeInBytes;
-    if (sizeArg == "SMALL") sizeInBytes = 512LL * 1024 * 1024; // 512 MB
-    else if (sizeArg == "MEDIUM") sizeInBytes = 1LL * 1024 * 1024 * 1024; // 1 GB
-    else if (sizeArg == "LARGE") sizeInBytes = 2LL * 1024 * 1024 * 1024; // 2 GB
-    else {
-        cerr << "Invalid size argument. Use SMALL, MEDIUM, or LARGE." << endl;
-        exit(1);
-    }
-
-    // Crear y abrir el archivo binario para escritura
-    ofstream outFile(outputFilePath, ios::binary);
+void generateFile(const std::string& filePath, size_t numIntegers) {
+    std::ofstream outFile(filePath, std::ios::binary);
     if (!outFile) {
-        cerr << "Error opening file for writing: " << outputFilePath << endl;
-        exit(1);
+        std::cerr << "Error al abrir el archivo para escritura: " << filePath << std::endl;
+        return;
     }
 
-    // Generar números enteros aleatorios y escribirlos en el archivo
-    srand(static_cast<unsigned int>(time(0))); // Inicializar la semilla para números aleatorios
-    for (long long i = 0; i < sizeInBytes / sizeof(int); ++i) {
-        int randomNumber = rand();
-        outFile.write(reinterpret_cast<char*>(&randomNumber), sizeof(randomNumber));
+    // Inicializa el generador de números aleatorios
+    std::srand(static_cast<unsigned>(std::time(nullptr)));
+
+    for (size_t i = 0; i < numIntegers; ++i) {
+        int randomInt = std::rand();
+        outFile.write(reinterpret_cast<const char*>(&randomInt), sizeof(randomInt));
     }
 
-    // Cerrar el archivo
     outFile.close();
 }
 
-int main(int argc, char *argv[]) {
+int main(int argc, char* argv[]) {
     if (argc != 5) {
-        cerr << "Usage: generator --size <SIZE> --output <OUTPUT FILE PATH>" << endl;
+        std::cerr << "Uso: generator –size <SIZE> -output <OUTPUT FILE PATH>" << std::endl;
         return 1;
     }
 
-    string sizeArg;
-    string outputFilePath;
+    std::string sizeStr = argv[2];
+    std::string outputPath = argv[4];
 
-    for (int i = 1; i < argc; ++i) {
-        if (string(argv[i]) == "--size") {
-            if (i + 1 < argc) sizeArg = argv[++i];
-            else {
-                cerr << "Missing value for --size" << endl;
-                return 1;
-            }
-        } else if (string(argv[i]) == "--output") {
-            if (i + 1 < argc) outputFilePath = argv[++i];
-            else {
-                cerr << "Missing value for --output" << endl;
-                return 1;
-            }
-        } else {
-            cerr << "Unknown argument: " << argv[i] << endl;
-            return 1;
-        }
+    size_t numIntegers = 0;
+    if (sizeStr == "SMALL") {
+        numIntegers = 512ULL * 1024 * 1024 / sizeof(int); // 512 MB
+    } else if (sizeStr == "MEDIUM") {
+        numIntegers = 1024ULL * 1024 * 1024 / sizeof(int); // 1 GB
+    } else if (sizeStr == "LARGE") {
+        numIntegers = 2ULL * 1024 * 1024 * 1024 / sizeof(int); // 2 GB
+    } else {
+        std::cerr << "Tamaño no reconocido. Usa SMALL, MEDIUM o LARGE." << std::endl;
+        return 1;
     }
 
-    generateFile(sizeArg, outputFilePath);
+    generateFile(outputPath, numIntegers);
+
     return 0;
 }

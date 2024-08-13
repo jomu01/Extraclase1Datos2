@@ -1,36 +1,34 @@
-#ifndef PAGEDARRAY_H
-#define PAGEDARRAY_H
+#ifndef PAGED_ARRAY_H
+#define PAGED_ARRAY_H
 
-#include <iostream>
-#include <fstream>
+#include <string>
 #include <vector>
-#include <algorithm>
+#include <fstream>
+#include <unordered_map>
 
 class PagedArray {
 public:
-    PagedArray(const std::string& filename, size_t pageSize = 1024 * 1024 * 4);
+    PagedArray(const std::string& inputFilePath, size_t numIntegers);
     ~PagedArray();
 
     int& operator[](size_t index);
-    const int& operator[](size_t index) const;
 
-    void loadPage(size_t pageIndex);
-    void unloadPage(size_t pageIndex);
-
-    void printStats() const;
+    size_t getPageFaults() const;
+    size_t getPageHits() const;
 
 private:
-    std::string filename;
-    size_t pageSize;
-    size_t pageCount;
-    std::vector<int*> pages;
-    std::vector<bool> isPageLoaded;
+    std::ifstream inputFile;
+    std::ofstream tempFile;
+    size_t numIntegers;
+    std::vector<int> pages[4];
+    std::unordered_map<size_t, size_t> pageMap;
+    size_t pageFaults = 0;
+    size_t pageHits = 0;
 
-    size_t calculatePageIndex(size_t index) const;
-    size_t calculateOffset(size_t index) const;
-
-    size_t totalPageFaults;
-    size_t totalPageHits;
+    size_t getPageIndex(size_t index) const;
+    size_t getPageOffset(size_t index) const;
+    void loadPage(size_t pageIndex);
+    void unloadPage(size_t pageIndex);
 };
 
-#endif // PAGEDARRAY_H
+#endif // PAGED_ARRAY_H

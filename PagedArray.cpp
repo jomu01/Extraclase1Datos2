@@ -1,86 +1,76 @@
 #include "PagedArray.h"
 #include <stdexcept>
-#include <cstring>
+#include <iostream>
 
-PagedArray::PagedArray(const std::string& filename, size_t pageSize)
-    : filename(filename), pageSize(pageSize), pageCount(0),
-      totalPageFaults(0), totalPageHits(0) {
-    // Assuming pageSize is the number of integers per page
-    std::ifstream infile(filename, std::ios::binary | std::ios::ate);
-    if (!infile.is_open()) {
-        throw std::runtime_error("Unable to open file.");
+const size_t PAGE_SIZE = 4096; // Tamaño de la página en número de enteros (ajustar si es necesario)
+
+PagedArray::PagedArray(const std::string& inputFilePath, size_t numIntegers)
+    : inputFile(inputFilePath, std::ios::binary), numIntegers(numIntegers) {
+    if (!inputFile) {
+        throw std::runtime_error("Error al abrir el archivo de entrada.");
     }
-    size_t fileSize = infile.tellg();
-    infile.close();
-    pageCount = (fileSize + pageSize * sizeof(int) - 1) / (pageSize * sizeof(int));
-
-    pages.resize(4, nullptr);
-    isPageLoaded.resize(pageCount, false);
+    tempFile.open("temp.bin", std::ios::binary | std::ios::trunc);
+    if (!tempFile) {
+        throw std::runtime_error("Error al abrir el archivo temporal.");
+    }
 }
 
 PagedArray::~PagedArray() {
-    for (int* page : pages) {
-        delete[] page;
+    for (size_t i = 0; i < 4; ++i) {
+        if (!pages[i].empty()) {
+            tempFile.seekp(i * PAGE_SIZE * sizeof(int));
+            tempFile.write(reinterpret_cast<const char*>(pages[i].data()), PAGE_SIZE * sizeof(int));
+        }
+    }
+}
+
+size_t PagedArray::getPageIndex(size_t index) const {
+    return index / PAGE_SIZE;
+}
+
+size_t PagedArray::getPageOffset(size_t index) const {
+    return index % PAGE_SIZE;
+}
+
+void PagedArray::loadPage(size_t pageIndex) {
+    size_t pagePos = pageIndex % 4;
+    size_t offset = pageIndex * PAGE_SIZE * sizeof(int);
+    inputFile.seekg(offset);
+    pages[pagePos].resize(PAGE_SIZE);
+    inputFile.read(reinterpret_cast<char*>(pages[pagePos].data()), PAGE_SIZE * sizeof(int));
+    pageMap[pageIndex] = pagePos;
+    pageFaults++;
+}
+
+void PagedArray::unloadPage(size_t pageIndex) {
+    if (pageMap.count(pageIndex)) {
+        size_t pagePos = pageMap[pageIndex];
+        tempFile.seekp(pagePos * PAGE_SIZE * sizeof(int));
+        tempFile.write(reinterpret_cast<const char*>(pages[pagePos].data()), PAGE_SIZE * sizeof(int));
+        pageMap.erase(pageIndex);
     }
 }
 
 int& PagedArray::operator[](size_t index) {
-    size_t pageIndex = calculatePageIndex(index);
-    if (!isPageLoaded[pageIndex]) {
-        loadPage(pageIndex);
+    size_t pageIndex = getPageIndex(index);
+    size_t pageOffset = getPageOffset(index);
+
+    if (pageMap.count(pageIndex)) {
+        pageHits++;
+        return pages[pageMap[pageIndex]][pageOffset];
     } else {
-        ++totalPageHits;
-    }
-    return pages[pageIndex][calculateOffset(index)];
-}
-
-const int& PagedArray::operator[](size_t index) const {
-    size_t pageIndex = calculatePageIndex(index);
-    if (!isPageLoaded[pageIndex]) {
-        throw std::runtime_error("Page not loaded.");
-    }
-    return pages[pageIndex][calculateOffset(index)];
-}
-
-void PagedArray::loadPage(size_t pageIndex) {
-    size_t pageOffset = pageIndex * pageSize * sizeof(int);
-    std::ifstream infile(filename, std::ios::binary);
-    infile.seekg(pageOffset);
-
-    size_t pageSizeBytes = pageSize * sizeof(int);
-    char* buffer = new char[pageSizeBytes];
-    infile.read(buffer, pageSizeBytes);
-
-    int* page = new int[pageSize];
-    std::memcpy(page, buffer, pageSizeBytes);
-    delete[] buffer;
-
-    if (pages.size() >= 4) {
-        unloadPage(0); // Simple replacement policy: unload the first page
-    }
-
-    pages.push_back(page);
-    isPageLoaded[pageIndex] = true;
-    ++totalPageFaults;
-}
-
-void PagedArray::unloadPage(size_t pageIndex) {
-    if (isPageLoaded[pageIndex]) {
-        delete[] pages[pageIndex];
-        pages[pageIndex] = nullptr;
-        isPageLoaded[pageIndex] = false;
+        if (pageMap.size() >= 4) {
+            unloadPage(pageIndex);
+        }
+        loadPage(pageIndex);
+        return pages[pageMap[pageIndex]][pageOffset];
     }
 }
 
-void PagedArray::printStats() const {
-    std::cout << "Page faults: " << totalPageFaults << std::endl;
-    std::cout << "Page hits: " << totalPageHits << std::endl;
+size_t PagedArray::getPageFaults() const {
+    return pageFaults;
 }
 
-size_t PagedArray::calculatePageIndex(size_t index) const {
-    return index / pageSize;
-}
-
-size_t PagedArray::calculateOffset(size_t index) const {
-    return index % pageSize;
+size_t PagedArray::getPageHits() const {
+    return pageHits;
 }
